@@ -1,23 +1,38 @@
 use console_engine::KeyCode;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GameSet {
+    On,
+    #[allow(dead_code)]
+    Off,
+}
+
+impl GameSet {
+    fn as_scan(&self) -> &str {
+        match self {
+            GameSet::On => "A",
+            GameSet::Off => "B",
+        }
+    }
+}
+
 #[derive(Debug)]
 struct GameCell { 
-    op: u32,
+    op: GameSet,
 }
 
 impl GameCell {
     pub fn new() -> Self {
-        GameCell { op: 0 }
+        GameCell { op: GameSet::On }
     }
-}
 
-impl GameCell {
-    fn get(&self) -> &str {
-        if self.op == 0 {
-            "A"
-        } else {
-            "B"
-        }
+    fn get(&self) -> GameSet {
+        self.op
+    }
+
+    #[allow(dead_code)]
+    fn set(&mut self, op: GameSet) {
+        self.op = op;
     }
 }
 
@@ -83,7 +98,7 @@ impl Game {
             self.engine.print(x, y + 1 + col, "|");
             for r in 0..mul_row {
                 let scan = self.get((col as usize, r as usize)).get().to_owned();
-                self.engine.print(x + 1 + col, y + 1 + r, scan.as_str());
+                self.engine.print(x + 1 + col, y + 1 + r, scan.as_scan());
             }
             self.engine.print(x + 1 + mul_col, y + 1 + col, "|");
         }
