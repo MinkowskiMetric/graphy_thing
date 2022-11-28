@@ -3,12 +3,18 @@ use console_engine::KeyCode;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum GameSet {
     On,
-    #[allow(dead_code)]
     Off,
 }
 
 impl GameSet {
-    fn as_scan(&self) -> &str {
+    fn as_scan(&self) -> KeyCode {
+        match &self {
+            GameSet::On => KeyCode::Char('A'),
+            GameSet::Off => KeyCode::Char('B'),
+        }
+    }
+
+    fn as_str(&self) -> &str {
         match self {
             GameSet::On => "A",
             GameSet::Off => "B",
@@ -19,13 +25,16 @@ impl GameSet {
 #[derive(Debug)]
 struct GameCell { 
     op: GameSet,
+    #[allow(dead_code)]
+    focused: bool,
 }
 
 impl GameCell {
     pub fn new() -> Self {
-        GameCell { op: GameSet::On }
+        GameCell { op: GameSet::On, focused: false }
     }
 
+    #[allow(dead_code)]
     fn get(&self) -> GameSet {
         self.op
     }
@@ -34,12 +43,42 @@ impl GameCell {
     fn set(&mut self, op: GameSet) {
         self.op = op;
     }
+
+    #[allow(dead_code)]
+    fn get_focus(&self) -> bool {
+        self.focused
+    }
+
+    #[allow(dead_code)]
+    fn set_focus(&mut self, set_focus: bool) {
+        self.focused = set_focus;
+    }
+}
+
+#[derive(Debug)]
+struct Input {
+    key: GameSet,
+    location: Option<GameCell>,
+}
+
+impl Input {
+    pub fn setup(key: GameSet) -> Self {
+        Self {
+            key,
+            location: None,
+        }
+    }
+
+    pub fn on_key(&mut self, location: Option<GameCell>) {
+        self.location = location;
+    }
 }
 
 struct Game {
     dimensions: (usize, usize),
     data: Box<[GameCell]>,
     engine: console_engine::ConsoleEngine,
+    inputs: Box<[Input]>,
 }
 
 impl Game {
@@ -54,8 +93,13 @@ impl Game {
             data.push(GameCell::new());
         }
         
+        let inputs = vec![
+            Input::setup(GameSet::On),
+            Input::setup(GameSet::Off),
+        ];
+
         let engine = console_engine::ConsoleEngine::init(20, 20, 3).unwrap();
-        Game { dimensions, data: data.into_boxed_slice(), engine }
+        Game { dimensions, data: data.into_boxed_slice(), engine, inputs: inputs.into_boxed_slice(), }
     }
 
     pub fn get(&self, pt: (usize, usize)) -> &GameCell {
@@ -74,6 +118,14 @@ impl Game {
         if self.engine.is_key_pressed(KeyCode::Char('q')) {
             None
         } else {
+            for input in self.inputs.iter_mut() {
+                if self.engine.is_key_pressed(input.key.as_scan()) {
+                    input.on_key(Some(GameCell { op: input.key, focused: false }));
+                } else {
+                    input.on_key(None);
+                }
+            }
+
             self.print(0, 0);
             self.engine.draw();
             Some(())
@@ -97,8 +149,8 @@ impl Game {
         for col in 0..mul_col {
             self.engine.print(x, y + 1 + col, "|");
             for r in 0..mul_row {
-                let scan = self.get((col as usize, r as usize)).get().to_owned();
-                self.engine.print(x + 1 + col, y + 1 + r, scan.as_scan());
+                let scan = self.get((col as usize, r as usize));
+                self.engine.print(x + 1 + col, y + 1 + r, scan.op.as_str().to_owned().as_str());
             }
             self.engine.print(x + 1 + mul_col, y + 1 + col, "|");
         }
