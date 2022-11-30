@@ -3,30 +3,41 @@ use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum GameCommand {
+    #[allow(dead_code)]
     On,
+    Off,
 }
 
 impl fmt::Display for GameCommand {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             GameCommand::On => f.write_str("O"),
+            GameCommand::Off => f.write_str("."),
         }
     }
 }
 
 struct PlayBookCell {
-
+    #[allow(dead_code)]
+    point: (usize, usize),
+    command: GameCommand,
 }
 
 impl PlayBookCell {
-    pub fn new() -> Self {
-        PlayBookCell { }
+    pub fn new(point: (usize, usize)) -> Self {
+        PlayBookCell { 
+            point,
+            command: GameCommand::Off,
+        }
+    }
+
+    pub fn get_visual(&self) -> GameCommand {
+        self.command
     }
 }
 
 struct PlayBook {
     dimensions: (usize, usize),
-    #[allow(dead_code)]
     data: Box<[PlayBookCell]>,
     engine: console_engine::ConsoleEngine,
 }
@@ -39,8 +50,10 @@ impl PlayBook {
 
     pub fn from_dimensions(dimensions: (usize, usize)) -> Self {
         let mut data = Vec::with_capacity(dimensions.0 * dimensions.1);
-        for _ in 0..(dimensions.0 * dimensions.1) {
-            data.push(PlayBookCell::new());
+        for x in 0..dimensions.0 {
+            for y in 0..dimensions.1 {
+                data.push(PlayBookCell::new((x, y)));
+            }
         }
 
         let engine = console_engine::ConsoleEngine::init(20, 20, 3).unwrap();
@@ -81,7 +94,7 @@ impl PlayBook {
         for col in 0..mul_col {
             self.engine.print(x, y + 1 + col, "|");
             for row in 0..mul_row {
-                self.print_glyph(x + 1 + col, y + 1 + row, GameCommand::On);
+                self.print_glyph(x + 1 + col, y + 1 + row, self.data[col as usize].get_visual());
             }
             self.engine.print(x + 1 + mul_col, y + 1 + col, "|");
         }
