@@ -1,9 +1,17 @@
 use console_engine::KeyCode;
+use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum GameCommand {
-    #[allow(dead_code)]
     On,
+}
+
+impl fmt::Display for GameCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GameCommand::On => f.write_str("O"),
+        }
+    }
 }
 
 struct PlayBookCell {
@@ -57,6 +65,10 @@ impl PlayBook {
         }
     }
 
+    fn print_glyph(&mut self, x: i32, y: i32, shape: GameCommand) {
+        self.engine.print(x, y, &shape.to_owned().to_string());
+    }
+
     pub fn print(&mut self, x: i32, y: i32) {
         let (mul_col, mul_row) = (self.dimensions.0 as i32, self.dimensions.1 as i32);
 
@@ -68,8 +80,8 @@ impl PlayBook {
 
         for col in 0..mul_col {
             self.engine.print(x, y + 1 + col, "|");
-            for _row in 0..mul_row {
-                // TODO self.engine.print(x + 1 + col, y + 1 + r, self.cell_layout((col as usize, row as usize)).as_scan());
+            for row in 0..mul_row {
+                self.print_glyph(x + 1 + col, y + 1 + row, GameCommand::On);
             }
             self.engine.print(x + 1 + mul_col, y + 1 + col, "|");
         }
