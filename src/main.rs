@@ -1,4 +1,4 @@
-use console_engine::KeyCode;
+use console_engine::{KeyCode, events::Event};
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,15 +61,29 @@ impl PlayBook {
     }
 
     fn single_input(&mut self) -> Option<()> {
-        self.engine.wait_frame();
-        self.engine.clear_screen();
+        match self.engine.poll() {
+            Event::Frame => {
+                self.engine.clear_screen();
+                self.print(0, 0);
+                self.engine.draw();
+                Some(())
+            },
 
-        if self.engine.is_key_pressed(KeyCode::Char('q')) {
-            None
-        } else {
-            self.print(0, 0);
-            self.engine.draw();
-            Some(())
+            Event::Key(key) => {
+                if key.code == KeyCode::Char('q') {
+                    None
+                } else {
+                    Some(())
+                }
+            },
+
+            Event::Mouse(_mouse) => {
+                Some(())
+            },
+
+            Event::Resize(_width, _height) => {
+                Some(())
+            },
         }
     }
 
