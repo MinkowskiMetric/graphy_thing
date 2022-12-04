@@ -1,5 +1,33 @@
-use console_engine::{KeyCode, events::Event, crossterm::event::MouseEvent};
+use console_engine::{KeyCode, events::Event};
 use std::{cell::RefCell, fmt};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Size {
+    pub width: usize,
+    pub height: usize,
+}
+
+impl Size {
+    pub fn from_sizes(width: usize, height: usize) -> Self {
+        Self { width, height }
+    }
+
+    pub fn get_width(&self) -> usize {
+        self.width
+    }
+
+    pub fn set_width(&mut self, width: usize) {
+        self.width = width;
+    }
+
+    pub fn get_height(&self) -> usize {
+        self.height
+    }
+
+    pub fn set_height(&mut self, height: usize) {
+        self.height = height;
+    }
+}
 
 struct ConsoleGraph {
     e: RefCell<console_engine::ConsoleEngine>,
@@ -60,47 +88,49 @@ impl fmt::Display for GameCommand {
     }
 }
 
-
 struct PlayBookCell {
     #[allow(dead_code)]
-    point: (usize, usize),
+    point: Size,
     command: GameCommand,
 }
 
 impl PlayBookCell {
-    pub fn new(point: (usize, usize)) -> Self {
+    pub fn new(point: Size) -> Self {
         PlayBookCell { 
             point,
             command: GameCommand::Off,
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_visual(&self) -> GameCommand {
         self.command
     }
 }
 
 struct PlayBook {
-    dimensions: (usize, usize),
-    data: Box<[PlayBookCell]>,
+    dimensions: Size,
+    data: Box<[Box<[PlayBookCell]>]>,
     engine: ConsoleGraph,
 }
 
 impl PlayBook {
     #[allow(dead_code)]
     pub fn from_sizes(width: usize, height: usize) -> Self {
-        Self::from_dimensions((width, height))
+        Self::from_dimensions(Size::from_sizes(width, height))
     }
 
-    pub fn from_dimensions(dimensions: (usize, usize)) -> Self {
-        let mut data = Vec::with_capacity(dimensions.0 * dimensions.1);
-        for x in 0..dimensions.0 {
-            for y in 0..dimensions.1 {
-                data.push(PlayBookCell::new((x, y)));
+    pub fn from_dimensions(dimensions: Size) -> Self {
+        let mut screen_data = Vec::with_capacity(dimensions.get_width());
+        for x in 0..dimensions.get_width() {
+            let mut screen_height = Vec::with_capacity(dimensions.get_height());
+            for y in 0..dimensions.get_height() {
+                screen_height.push(PlayBookCell::new(Size::from_sizes(x, y)));
             }
+            screen_data.push(screen_height.into_boxed_slice());
         }
-
-        PlayBook { dimensions, data: data.into_boxed_slice(), engine: ConsoleGraph::init(20, 25, 3).unwrap(), }
+        
+        PlayBook { dimensions, data: screen_data.into_boxed_slice(), engine: ConsoleGraph::init(30, 30, 3).unwrap(), }
     }
 
     fn single_input(&self) -> Option<SingleCommand> {
@@ -119,13 +149,8 @@ impl PlayBook {
                 }
             },
 
-            Event::Mouse(mouse) => {
-                let pos = (mouse.column as usize, mouse.row as usize);
-                if pos.0 < self.dimensions.0 && pos.1 < self.dimensions.1 {
-                    self.on_mouse(&self.data[(self.dimensions.0 * pos.1) * pos.0], pos, mouse)
-                } else {
-                    None
-                }
+            Event::Mouse(_mouse) => {
+                None
             },
 
             Event::Resize(_width, _heights) => {
@@ -139,10 +164,6 @@ impl PlayBook {
         }
     }
 
-    fn on_mouse(&self, _play_room_cell: &PlayBookCell, _pos: (usize, usize), _mouse_event: MouseEvent) -> Option<SingleCommand> {
-        todo!()
-    }
-
     fn print_code(&self, x: i32, y: i32, string: &str) {
         self.engine.print(x, y, string);
     }
@@ -152,7 +173,7 @@ impl PlayBook {
     }
 
     pub fn print(&self, x: i32, y: i32) {
-        let (mul_col, mul_row) = (self.dimensions.0 as i32, self.dimensions.1 as i32);
+        let (mul_col, mul_row) = (self.dimensions.get_width() as i32, self.dimensions.get_height() as i32);
 
         self.print_code(x, y, "+");
         for col in 0..mul_col {
@@ -160,12 +181,12 @@ impl PlayBook {
         }
         self.print_code(x + 1 + mul_col, y, "+");
 
-        for col in 0..mul_col {
-            self.print_code(x, y + 1 + col, "|");
-            for row in 0..mul_row {
-                self.print_glyph(x + 1 + col, y + 1 + row, self.data[col as usize].get_visual());
+        for row in 0..mul_row {
+            self.print_code(x, y + 1 + row, "|");
+            for col in 0..mul_col{
+                self.print_glyph(x + 1 + col, y + 1 + row, self.data[x as usize][y as usize].command);
             }
-            self.print_code(x + 1 + mul_col, y + 1 + col, "|");
+            self.print_code(x + 1 + mul_col, y + 1 + row, "|");
         }
         
         self.print_code(x, y + 1 + mul_row, "+");
@@ -177,6 +198,5 @@ impl PlayBook {
 }
 
 fn main() {
-    let dimensions = (15, 15);
-    PlayBook::from_dimensions(dimensions).play();
+    PlayBook::from_sizes(25, 10).play();
 }
