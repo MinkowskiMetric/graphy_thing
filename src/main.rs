@@ -1,4 +1,4 @@
-use console_engine::{KeyCode, events::Event};
+use console_engine::{KeyCode, events::Event, crossterm::event::{MouseEvent, MouseEventKind, KeyEvent}};
 use std::{cell::RefCell, fmt};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -26,6 +26,60 @@ impl Size {
 
     pub fn set_height(&mut self, height: usize) {
         self.height = height;
+    }
+
+    pub fn to_rectangle(&self) -> Rectangle {
+        Rectangle { left: 0, top: 0, right: self.width, bottom: self.height }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Rectangle {
+    pub left: usize,
+    pub top: usize,
+    pub right: usize,
+    pub bottom: usize,
+}
+
+impl Rectangle {
+    pub fn from_sizes(left: usize, top: usize, right: usize, bottom: usize) -> Self {
+        Self { left, top, right, bottom }
+    }
+
+    pub fn get_left(&self) -> usize {
+        self.left
+    }
+
+    pub fn set_left(&mut self, left: usize) {
+        self.left = left;
+    }
+
+    pub fn get_top(&self) -> usize {
+        self.top
+    }
+
+    pub fn set_top(&mut self, top: usize) {
+        self.top = top;
+    }
+
+    pub fn get_right(&self) -> usize {
+        self.right
+    }
+
+    pub fn set_right(&mut self, right: usize) {
+        self.right = right;
+    }
+
+    pub fn get_bottom(&self) -> usize {
+        self.bottom
+    }
+
+    pub fn set_bottom(&mut self, bottom: usize) {
+        self.bottom = bottom;
+    }
+
+    pub fn expand(&self, left_offset: isize, top_offset: isize, right_offset: isize, bottom_offset: isize) -> Rectangle {
+        Self { left: self.left - left_offset as usize, top: self.top - top_offset as usize, right: self.right + right_offset as usize, bottom: self.bottom + bottom_offset as usize }
     }
 }
 
@@ -60,12 +114,15 @@ impl ConsoleGraph {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SingleCommand {
+    #[allow(dead_code)]
+    Switch,
     Quit,
 }
 
 impl fmt::Display for SingleCommand {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            SingleCommand::Switch => f.write_str("Switch"),
             SingleCommand::Quit => f.write_str("Quit"),
         }
     }    
@@ -96,7 +153,7 @@ struct PlayBookCell {
 
 impl PlayBookCell {
     pub fn new(point: Size) -> Self {
-        PlayBookCell { 
+        PlayBookCell {
             point,
             command: GameCommand::Off,
         }
@@ -130,10 +187,28 @@ impl PlayBook {
             screen_data.push(screen_height.into_boxed_slice());
         }
         
-        PlayBook { dimensions, data: screen_data.into_boxed_slice(), engine: ConsoleGraph::init(30, 30, 3).unwrap(), }
+        PlayBook { dimensions, data: screen_data.into_boxed_slice(), engine: ConsoleGraph::init(30, 30, 3).unwrap() }
     }
 
-    fn single_input(&self) -> Option<SingleCommand> {
+    #[allow(dead_code)]
+    fn get_col(&self, col: usize) -> &[PlayBookCell] {
+        &self.data[col]
+    }
+
+    #[allow(dead_code)]
+    fn get_row(&self, col: usize, row: usize) -> &PlayBookCell {
+        &self.get_col(col)[row]
+    }
+
+    fn get_col_mut(&mut self, col: usize) -> &mut [PlayBookCell] {
+        &mut self.data[col]
+    }
+
+    fn get_row_mut(&mut self, col: usize, row: usize) -> &mut PlayBookCell {
+        &mut self.get_col_mut(col)[row]
+    }
+
+    fn single_input(&mut self) -> Option<SingleCommand> {
         match self.engine.poll() {
             Event::Frame => {
                 self.engine.clear_screen();
@@ -142,16 +217,8 @@ impl PlayBook {
                 None
             },
 
-            Event::Key(key) => {
-                match key.code {
-                    KeyCode::Char('q') | KeyCode::Char('Q') => Some(SingleCommand::Quit),
-                    _ => None,
-                }
-            },
-
-            Event::Mouse(_mouse) => {
-                None
-            },
+            Event::Key(key) => self.handle_key(&key),
+            Event::Mouse(mouse) => self.handle_mouse(&mouse),
 
             Event::Resize(_width, _heights) => {
                 None
@@ -159,7 +226,25 @@ impl PlayBook {
         }
     }
 
-    pub fn play(self) {
+    fn handle_key(&mut self, key: &KeyEvent) -> Option<SingleCommand> {
+        match key.code {
+            KeyCode::Char('q') | KeyCode::Char('Q') => Some(SingleCommand::Quit),
+            _ => None,
+        }
+    }
+
+    fn handle_mouse(&mut self, mouse: &MouseEvent) -> Option<SingleCommand> {
+        let (mouse_row, mouse_column) = (mouse.row as usize, mouse.column as usize);
+        if mouse.kind == MouseEventKind::Moved && mouse_column >= 1 && mouse_column <= self.dimensions.width && mouse_row >= 1 && mouse_row <= self.dimensions.height {
+            let (col, row) = (mouse_column - 1, mouse_row - 1);
+            let _play_book_cell = self.get_row_mut(col, row);
+            todo!("Weehoo : {} {}", col, row)
+        } else {
+            None
+        }
+    }
+
+    pub fn play(mut self) {
         while self.single_input().is_none() {
         }
     }
