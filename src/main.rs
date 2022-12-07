@@ -1,5 +1,5 @@
 use console_engine::{KeyCode, events::Event, crossterm::event::{MouseEvent, MouseEventKind, KeyEvent}};
-use std::{cell::RefCell, fmt};
+use std::{cell::RefCell, fmt, time::Instant};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Size {
@@ -99,6 +99,10 @@ impl ConsoleGraph {
         self.e.borrow_mut().poll()
     }
 
+    pub fn wait_frame(&self) {
+        self.e.borrow_mut().wait_frame()
+    }
+
     pub fn clear_screen(&self) {
         self.e.borrow_mut().clear_screen();
     }
@@ -114,7 +118,6 @@ impl ConsoleGraph {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SingleCommand {
-    #[allow(dead_code)]
     Switch,
     Quit,
 }
@@ -130,11 +133,9 @@ impl fmt::Display for SingleCommand {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum GameCommand {
-    #[allow(dead_code)]
     On,
     Off,
 }
-
 
 impl fmt::Display for GameCommand {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -148,6 +149,7 @@ impl fmt::Display for GameCommand {
 struct PlayBookCell {
     #[allow(dead_code)]
     point: Size,
+    timer: Option<Instant>,
     command: GameCommand,
 }
 
@@ -155,13 +157,21 @@ impl PlayBookCell {
     pub fn new(point: Size) -> Self {
         PlayBookCell {
             point,
+            timer: None,
             command: GameCommand::Off,
         }
     }
 
-    #[allow(dead_code)]
-    pub fn get_visual(&self) -> GameCommand {
-        self.command
+    fn action(&mut self) {
+        self.timer = Some(Instant::now());
+        self.command = GameCommand::On;
+    }
+
+    fn clear_setup(&mut self) {
+        if self.timer.as_ref().and_then(|instant| if instant.elapsed().as_secs() >= 2 { Some(()) } else { None }).is_some() {
+            self.timer = None;
+            self.command = GameCommand::Off;
+        }
     }
 }
 
@@ -212,7 +222,9 @@ impl PlayBook {
         match self.engine.poll() {
             Event::Frame => {
                 self.engine.clear_screen();
-                self.print(0, 0);
+                self.clear_setup();
+                self.engine.wait_frame();
+                self.print(0, 0);   
                 self.engine.draw();
                 None
             },
@@ -223,6 +235,14 @@ impl PlayBook {
             Event::Resize(_width, _heights) => {
                 None
             },
+        }
+    }
+
+    fn clear_setup(&mut self) {
+        for col in 0..self.dimensions.get_width() {
+            for row in 0..self.dimensions.get_height() {
+                self.data[col][row].clear_setup();
+            }
         }
     }
 
@@ -237,15 +257,20 @@ impl PlayBook {
         let (mouse_row, mouse_column) = (mouse.row as usize, mouse.column as usize);
         if mouse.kind == MouseEventKind::Moved && mouse_column >= 1 && mouse_column <= self.dimensions.width && mouse_row >= 1 && mouse_row <= self.dimensions.height {
             let (col, row) = (mouse_column - 1, mouse_row - 1);
-            let _play_book_cell = self.get_row_mut(col, row);
-            todo!("Weehoo : {} {}", col, row)
+            let play_book_cell = self.get_row_mut(col, row);
+            play_book_cell.action();
+            Some(SingleCommand::Switch)
         } else {
             None
         }
     }
 
     pub fn play(mut self) {
-        while self.single_input().is_none() {
+        loop {
+            match self.single_input() {
+                None | Some(SingleCommand::Switch) => (),
+                Some(SingleCommand::Quit) => { return; },
+            }
         }
     }
 
@@ -268,8 +293,8 @@ impl PlayBook {
 
         for row in 0..mul_row {
             self.print_code(x, y + 1 + row, "|");
-            for col in 0..mul_col{
-                self.print_glyph(x + 1 + col, y + 1 + row, self.data[x as usize][y as usize].command);
+            for col in 0..mul_col {
+                self.print_glyph(x + 1 + col, y + 1 + row, self.data[(x + col) as usize][(y + row) as usize].command);
             }
             self.print_code(x + 1 + mul_col, y + 1 + row, "|");
         }
