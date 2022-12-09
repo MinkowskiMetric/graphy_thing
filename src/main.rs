@@ -4,7 +4,7 @@ use console_engine::{
     KeyCode, MouseButton,
 };
 use core::str;
-use std::{cell::RefCell, fmt, time::Instant};
+use std::{fmt, time::Instant};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Size {
@@ -110,35 +110,35 @@ impl Rectangle {
 }
 
 struct ConsoleGraph {
-    e: RefCell<console_engine::ConsoleEngine>,
+    e: console_engine::ConsoleEngine,
 }
 
 impl ConsoleGraph {
     pub fn init(width: u32, height: u32, target_fps: u32) -> Result<Self, std::io::Error> {
         match console_engine::ConsoleEngine::init(width, height, target_fps) {
-            Ok(e) => Ok(Self { e: RefCell::new(e) }),
+            Ok(e) => Ok(Self { e }),
             Err(e) => Err(e),
         }
     }
 
-    pub fn poll(&self) -> Event {
-        self.e.borrow_mut().poll()
+    pub fn poll(&mut self) -> Event {
+        self.e.poll()
     }
 
-    pub fn wait_frame(&self) {
-        self.e.borrow_mut().wait_frame()
+    pub fn wait_frame(&mut self) {
+        self.e.wait_frame()
     }
 
-    pub fn clear_screen(&self) {
-        self.e.borrow_mut().clear_screen();
+    pub fn clear_screen(&mut self) {
+        self.e.clear_screen();
     }
 
-    pub fn draw(&self) {
-        self.e.borrow_mut().draw();
+    pub fn draw(&mut self) {
+        self.e.draw();
     }
 
-    pub fn print(&self, x: i32, y: i32, string: &str) {
-        self.e.borrow_mut().print(x, y, string)
+    pub fn print(&mut self, x: i32, y: i32, string: &str) {
+        self.e.print(x, y, string)
     }
 }
 
@@ -322,21 +322,21 @@ impl PlayBook {
         }
     }
 
-    fn print_code(&self, x: i32, y: i32, string: &str) {
+    fn print_code(&mut self, x: i32, y: i32, string: &str) {
         self.engine.print(x, y, string);
     }
 
-    fn print_glyph(&self, x: i32, y: i32, shape: GameCommand) {
+    fn print_glyph(&mut self, x: i32, y: i32, shape: GameCommand) {
         self.print_code(x, y, shape.to_string().as_str());
     }
 
-    fn print_horiz(&self, x1: i32, x2: i32, y: i32, stag: &str, ttag: &str, etag: &str) {
+    fn print_horiz(&mut self, x1: i32, x2: i32, y: i32, stag: &str, ttag: &str, etag: &str) {
         let len = (x2 - x1).max(2);
         let result = stag.to_owned() + &ttag.repeat(len as usize - 2) + etag;
         self.print_code(x1, y, result.as_str());
     }
 
-    pub fn print(&self, x: i32, y: i32) {
+    pub fn print(&mut self, x: i32, y: i32) {
         let (mul_col, mul_row) = (
             self.dimensions.get_width() as i32,
             self.dimensions.get_height() as i32,
