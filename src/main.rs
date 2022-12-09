@@ -3,6 +3,7 @@ use console_engine::{
     events::Event,
     KeyCode, MouseButton,
 };
+use core::str;
 use std::{cell::RefCell, fmt, time::Instant};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -329,17 +330,17 @@ impl PlayBook {
         self.print_code(x, y, shape.to_string().as_str());
     }
 
+    fn print_horiz(&self, x1: i32, x2: i32, y: i32, stag: &str, ttag: &str, etag: &str) {
+        let len = (x2 - x1).max(2);
+        let result = stag.to_owned() + &ttag.repeat(len as usize - 2) + etag;
+        self.print_code(x1, y, result.as_str());
+    }
+
     pub fn print(&self, x: i32, y: i32) {
         let (mul_col, mul_row) = (
             self.dimensions.get_width() as i32,
             self.dimensions.get_height() as i32,
         );
-
-        self.print_code(x, y, "+");
-        for col in 0..mul_col {
-            self.print_code(x + 1 + col, y, "-");
-        }
-        self.print_code(x + 1 + mul_col, y, "+");
 
         for row in 0..mul_row {
             self.print_code(x, y + 1 + row, "|");
@@ -353,11 +354,8 @@ impl PlayBook {
             self.print_code(x + 1 + mul_col, y + 1 + row, "|");
         }
 
-        self.print_code(x, y + 1 + mul_row, "+");
-        for col in 0..mul_col {
-            self.print_code(x + 1 + col, y + 1 + mul_row, "-");
-        }
-        self.print_code(x + 1 + mul_col, y + 1 + mul_row, "+");
+        self.print_horiz(x, x + 2 + mul_col, y, "+", "-", "+");
+        self.print_horiz(x, x + 2 + mul_col, y + 1 + mul_row, "+", "-", "+");
     }
 }
 
