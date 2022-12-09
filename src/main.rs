@@ -1,4 +1,8 @@
-use console_engine::{KeyCode, events::Event, crossterm::event::{MouseEvent, MouseEventKind, KeyEvent}};
+use console_engine::{
+    crossterm::event::{KeyEvent, MouseEvent, MouseEventKind},
+    events::Event,
+    KeyCode, MouseButton,
+};
 use std::{cell::RefCell, fmt, time::Instant};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -29,7 +33,12 @@ impl Size {
     }
 
     pub fn to_rectangle(&self) -> Rectangle {
-        Rectangle { left: 0, top: 0, right: self.width, bottom: self.height }
+        Rectangle {
+            left: 0,
+            top: 0,
+            right: self.width,
+            bottom: self.height,
+        }
     }
 }
 
@@ -43,7 +52,12 @@ pub struct Rectangle {
 
 impl Rectangle {
     pub fn from_sizes(left: usize, top: usize, right: usize, bottom: usize) -> Self {
-        Self { left, top, right, bottom }
+        Self {
+            left,
+            top,
+            right,
+            bottom,
+        }
     }
 
     pub fn get_left(&self) -> usize {
@@ -78,8 +92,19 @@ impl Rectangle {
         self.bottom = bottom;
     }
 
-    pub fn expand(&self, left_offset: isize, top_offset: isize, right_offset: isize, bottom_offset: isize) -> Rectangle {
-        Self { left: self.left - left_offset as usize, top: self.top - top_offset as usize, right: self.right + right_offset as usize, bottom: self.bottom + bottom_offset as usize }
+    pub fn expand(
+        &self,
+        left_offset: isize,
+        top_offset: isize,
+        right_offset: isize,
+        bottom_offset: isize,
+    ) -> Rectangle {
+        Self {
+            left: self.left - left_offset as usize,
+            top: self.top - top_offset as usize,
+            right: self.right + right_offset as usize,
+            bottom: self.bottom + bottom_offset as usize,
+        }
     }
 }
 
@@ -108,7 +133,7 @@ impl ConsoleGraph {
     }
 
     pub fn draw(&self) {
-       self.e.borrow_mut().draw();
+        self.e.borrow_mut().draw();
     }
 
     pub fn print(&self, x: i32, y: i32, string: &str) {
@@ -128,7 +153,7 @@ impl fmt::Display for SingleCommand {
             SingleCommand::Switch => f.write_str("Switch"),
             SingleCommand::Quit => f.write_str("Quit"),
         }
-    }    
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -168,7 +193,18 @@ impl PlayBookCell {
     }
 
     fn clear_setup(&mut self) {
-        if self.timer.as_ref().and_then(|instant| if instant.elapsed().as_secs() >= 2 { Some(()) } else { None }).is_some() {
+        if self
+            .timer
+            .as_ref()
+            .and_then(|instant| {
+                if instant.elapsed().as_secs() >= 2 {
+                    Some(())
+                } else {
+                    None
+                }
+            })
+            .is_some()
+        {
             self.timer = None;
             self.command = GameCommand::Off;
         }
@@ -196,8 +232,12 @@ impl PlayBook {
             }
             screen_data.push(screen_height.into_boxed_slice());
         }
-        
-        PlayBook { dimensions, data: screen_data.into_boxed_slice(), engine: ConsoleGraph::init(30, 30, 3).unwrap() }
+
+        PlayBook {
+            dimensions,
+            data: screen_data.into_boxed_slice(),
+            engine: ConsoleGraph::init(30, 30, 25).unwrap(),
+        }
     }
 
     #[allow(dead_code)]
@@ -224,17 +264,15 @@ impl PlayBook {
                 self.engine.clear_screen();
                 self.clear_setup();
                 self.engine.wait_frame();
-                self.print(0, 0);   
+                self.print(0, 0);
                 self.engine.draw();
                 None
-            },
+            }
 
             Event::Key(key) => self.handle_key(&key),
             Event::Mouse(mouse) => self.handle_mouse(&mouse),
 
-            Event::Resize(_width, _heights) => {
-                None
-            },
+            Event::Resize(_width, _heights) => None,
         }
     }
 
@@ -255,7 +293,14 @@ impl PlayBook {
 
     fn handle_mouse(&mut self, mouse: &MouseEvent) -> Option<SingleCommand> {
         let (mouse_row, mouse_column) = (mouse.row as usize, mouse.column as usize);
-        if mouse.kind == MouseEventKind::Moved && mouse_column >= 1 && mouse_column <= self.dimensions.width && mouse_row >= 1 && mouse_row <= self.dimensions.height {
+        if (mouse.kind == MouseEventKind::Moved
+            || mouse.kind == MouseEventKind::Down(MouseButton::Left)
+            || mouse.kind == MouseEventKind::Up(MouseButton::Left))
+            && mouse_column >= 1
+            && mouse_column <= self.dimensions.width
+            && mouse_row >= 1
+            && mouse_row <= self.dimensions.height
+        {
             let (col, row) = (mouse_column - 1, mouse_row - 1);
             let play_book_cell = self.get_row_mut(col, row);
             play_book_cell.action();
@@ -269,7 +314,9 @@ impl PlayBook {
         loop {
             match self.single_input() {
                 None | Some(SingleCommand::Switch) => (),
-                Some(SingleCommand::Quit) => { return; },
+                Some(SingleCommand::Quit) => {
+                    return;
+                }
             }
         }
     }
@@ -283,7 +330,10 @@ impl PlayBook {
     }
 
     pub fn print(&self, x: i32, y: i32) {
-        let (mul_col, mul_row) = (self.dimensions.get_width() as i32, self.dimensions.get_height() as i32);
+        let (mul_col, mul_row) = (
+            self.dimensions.get_width() as i32,
+            self.dimensions.get_height() as i32,
+        );
 
         self.print_code(x, y, "+");
         for col in 0..mul_col {
@@ -294,11 +344,15 @@ impl PlayBook {
         for row in 0..mul_row {
             self.print_code(x, y + 1 + row, "|");
             for col in 0..mul_col {
-                self.print_glyph(x + 1 + col, y + 1 + row, self.data[(x + col) as usize][(y + row) as usize].command);
+                self.print_glyph(
+                    x + 1 + col,
+                    y + 1 + row,
+                    self.data[(x + col) as usize][(y + row) as usize].command,
+                );
             }
             self.print_code(x + 1 + mul_col, y + 1 + row, "|");
         }
-        
+
         self.print_code(x, y + 1 + mul_row, "+");
         for col in 0..mul_col {
             self.print_code(x + 1 + col, y + 1 + mul_row, "-");
